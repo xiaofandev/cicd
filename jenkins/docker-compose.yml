@@ -1,0 +1,54 @@
+version: '3.7'
+
+services:
+  jenkins-docker:
+    container_name: jenkins-docker
+    image: docker:dind
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    privileged: true
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client
+    networks:
+      - internal_access
+
+  jenkins-blueocean:
+    build: .
+    image: myjenkins-blueocean:2.346.3-1
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      - DOCKER_HOST=tcp://jenkins-docker:2376
+      - DOCKER_CERT_PATH=/certs/client
+      - DOCKER_TLS_VERIFY=1
+    volumes:
+      - jenkins-data:/var/jenkins_home
+      - jenkins-docker-certs:/certs/client:ro
+    networks:
+      - internal_access
+      - external_access
+
+  sonatype-nexus3:
+    image: sonatype/nexus3
+    ports:
+      - "8081:8081"
+    volumes:
+      - nexus-data:/nexus-data
+    networks:
+      - external_access
+
+networks:
+  internal_access:
+    internal: true
+  external_access:
+
+volumes:
+  jenkins-docker-certs:
+    external: true
+  jenkins-data:
+    external: true
+  nexus-data:
+    external: true
+

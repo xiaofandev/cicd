@@ -1,1 +1,71 @@
-worker_processes {{ ansible_processor_cores }};
+user  root;
+worker_processes  1;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+
+    keepalive_timeout  65;
+
+    gzip  on;
+    gzip_min_length 1;
+    gzip_comp_level 5;
+    gzip_types application/json application/xml text/xml text/plain text/css application/javascript image/png image/gif image/jpeg;
+
+    client_body_buffer_size 3m;
+    client_max_body_size 10m;
+
+    upstream api-server-8090 {
+	    server api-service:8090 weight=1;
+    }
+
+    upstream api-server-8091 {
+	    server api-service:8091 weight=2;
+    }
+
+    server {
+        listen       80;
+        server_name  localhost;
+	    root /usr/share/nginx;
+
+        #web静态页面
+        location /web {
+            try_files $uri $uri/ @router-web;
+            index  index.html index.htm;
+            expires -1;
+        }
+
+        #wap静态页面
+        location /wap {
+            try_files $uri $uri/ @router-wap;
+            index  index.html index.htm;
+            #expires -1;
+        }
+
+        #api接口
+        location /api {
+            proxy_pass http://api-server-8090/api;
+        }
+
+        location @router-web {
+            rewrite ^.*$ /web/index.html break;
+        }
+
+        location @router-wap {
+            rewrite ^.*$ /wap/index.html break;
+        }
+
+        location /file {
+            alias file/;
+            #root /home/jenkins/nginx/file;
+        }
+
+    }
+
+}
